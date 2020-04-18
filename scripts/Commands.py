@@ -86,7 +86,7 @@ async def command_ping(bot, msg, args):
 
 async def command_invite(bot, msg, args):
     """Sends a link to add the bot to another server."""
-    em = discord.Embed(type="rich", title="Invite Secret Hitler Bot to a Server", description="https://discordapp.com/oauth2/authorize?client_id=331945702173179904&scope=bot", color=embed_color)
+    em = discord.Embed(type="rich", title="Invite Secret Hitler Bot to a Server", description="https://discordapp.com/api/oauth2/authorize?client_id=690150888836300860&permissions=67632192&scope=bot", color=embed_color)
     await msg.channel.send(embed=em)
 
 
