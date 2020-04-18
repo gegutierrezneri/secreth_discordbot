@@ -1,4 +1,5 @@
 from main import games, log
+import asyncio
 
 from discord.abc import PrivateChannel
 import discord
@@ -208,10 +209,10 @@ async def command_join(bot, msg, args):
                                                      "%s has joined the game. There is currently 1 player in the game and you need 5-10 players." % (
                                                          fname))
                                 else:
-                                    await game.channel(
+                                    await game.channel.send(
                                                      "%s has joined the game. There are currently %d players in the game and you need 5-10 players." % (
                                                          fname, len(game.playerlist)))
-                        except Exception:
+                        except Exception as e:
                             await game.channel.send(
                                              fname + ", I can\'t send you a DM. Please try sending sh?join again.")
                     else:
@@ -313,23 +314,28 @@ async def choose_chancellor(bot, game):
             if uid != game.board.state.nominated_president.user.id and game.playerlist[
                 uid].is_dead == False and uid != pres_uid and uid != chan_uid:
                 name = game.playerlist[uid].name
-                btns.append(name)
+                btns.append({'name': name, 'uid': uid})
         else:
             if uid != game.board.state.nominated_president.user.id and game.playerlist[
                 uid].is_dead == False and uid != chan_uid:
                 name = game.playerlist[uid].name
-                btns.append(name)
+                btns.append({'name': name, 'uid': uid})
 
-    await game.board.state.nominated_president.send(game.board.print_board())
-    await game.board.state.nominated_president.send('Please nominate your chancellor with sh?chan <id>!\nYour choices are:\n{}\n\nYou have 30 seconds.'.format("["+ str(i) +"] " + p for i, p in enumerate(btns)))
-
-    chan_num = None
+    await game.board.state.nominated_president.user.send(game.board.print_board())
+    await game.board.state.nominated_president.user.send('Please nominate your chancellor with sh?chan <id>!\nYour choices are:\n{}\n\nYou have 30 seconds.'
+                                                         .format(
+                                                             "\n".join(
+                                                                 "["+ str(i+1) +"] " + p['name'] for i, p in enumerate(btns)
+                                                                 )
+                                                         )
+    )
 
     def check_chancellor(msg):
-        global chan_num
+        if not msg.author==game.board.state.nominated_president.user:
+            return False
 
         msg_content = msg.content.strip()
-        if not msg_content.startsWith(PREFIX):
+        if not msg_content.startswith(PREFIX):
             return False
 
         cmd, *args = msg_content.split()
@@ -339,18 +345,26 @@ async def choose_chancellor(bot, game):
             return False
 
         try:
-            if not int(args[0]) > 0 or not int(args[0]) <= len(game.playerlist):
+            if not int(args[0]) > 0 or not int(args[0]) <= len(game.playerlist)-1:
                 return False
         except Exception:
             return False
 
-        chan_num = int(args[0])
         return True
 
 
     # Pick a random chancellor if they don't pick within 30 seconds
-    chan_msg = await bot.wait_for_message(author=game.board.state.nominated_president, check=check_chancellor, timeout=30)
-    await nominate_chosen_chancellor(bot, game.channel.id, game.playerlist.keys()[int(chan_num) - 1] if chan_msg else random.choice(game.playerlist.keys()))
+    #chan_msg = await bot.wait_for_message(author=game.board.state.nominated_president, check=check_chancellor, timeout=30)
+    try:
+        chan_msg = await bot.wait_for('message', check=check_chancellor, timeout=30)
+        cmd, *args = chan_msg.content.strip().split()
+        chan_num = int(args[0])
+    except asyncio.TimeoutError:
+        chan_num = None
+    await nominate_chosen_chancellor(bot,
+                                     game.channel.id,
+                                     btns[chan_num-1]['uid'] if chan_num else random.choice(list(game.playerlist.keys()))
+    )
 
 
 async def nominate_chosen_chancellor(bot, cid, chosen_uid):
@@ -391,7 +405,7 @@ async def vote(bot, game):
                 global vote
 
                 msg_content = msg.content.strip()
-                if not msg_content.startsWith(PREFIX):
+                if not msg_content.startswith(PREFIX):
                     return False
 
                 cmd, *args = msg_content.split()
@@ -408,7 +422,8 @@ async def vote(bot, game):
 
             voted_msg = await game.channel.send(embed=discord.Embed(title="Voted:", description="*Nobody has voted*"))
 
-            await bot.wait_for_message(author=game.playerlist[uid], check=check_vote, timeout=30)
+            #await bot.wait_for_message(author=game.playerlist[uid], check=check_vote, timeout=30)
+            await bot.wait_for('message', check=check_vote, timeout=30)
             await handle_voting(bot, game, game.playerlist[uid], vote if vote else True, voted_msg)
 
 
@@ -493,7 +508,7 @@ async def draw_policies(bot, game):
     discarded = None
     def check_discard(msg):
         msg_content = msg.content.strip()
-        if not msg_content.startsWith(PREFIX):
+        if not msg_content.startswith(PREFIX):
             return False
 
         cmd, *args = msg_content.split()
@@ -516,7 +531,8 @@ async def draw_policies(bot, game):
         policy_str += ("[" + str(i) + "] " + p + "\n")
 
     await game.board.state.president.user.send("You drew the following 3 policies: {}\nWhich one do you want to discard? Use sh?discard <id>.".format(policy_str))
-    await bot.wait_for_message(author=game.board.state.president.user, check=check_discard, timeout=30)
+    #await bot.wait_for_message(author=game.board.state.president.user, check=check_discard, timeout=30)
+    await bot.wait_for('message', check=check_discard, timeout=30)
 
     await choose_policy(bot, game, game.board.state.drawn_policies[discarded-1] if discarded else random.choice(game.board.state.drawn_policies))
 
@@ -538,19 +554,19 @@ async def choose_policy(bot, game, answer):
         elif len(game.board.state.drawn_policies) == 2:
             if answer == "veto":
                 log.info("Player %s (%d) suggested a veto" % (game.board.state.chancellor.name, game.board.state.chancellor.user.id))
-                await game.board.state.chancellor.send("You suggested a Veto to President %s" % game.board.state.president.name)
+                await game.board.state.chancellor.user.send("You suggested a Veto to President %s" % game.board.state.president.name)
                 await game.channel.send(
                                  "Chancellor %s suggested a Veto to President %s." % (
                                      game.board.state.chancellor.name, game.board.state.president.name))
 
-                await game.board.state.president.send("Chancellor %s suggested a Veto to you. Do you want to veto (discard) these cards?" % game.board.state.chancellor.name)
-                await game.board.state.president.send("Say sh?noveto to accept the suggestion. Say sh?veto to reject it. You have 30 seconds.")
+                await game.board.state.president.user.send("Chancellor %s suggested a Veto to you. Do you want to veto (discard) these cards?" % game.board.state.chancellor.name)
+                await game.board.state.president.user.send("Say sh?noveto to accept the suggestion. Say sh?veto to reject it. You have 30 seconds.")
 
                 # veto: if the policy can be passed
                 veto = None
                 def check_veto(msg):
                     msg_content = msg.content.strip()
-                    if not msg_content.startsWith(PREFIX):
+                    if not msg_content.startswith(PREFIX):
                         return False
 
                     cmd, *args = msg_content.split()
@@ -565,14 +581,15 @@ async def choose_policy(bot, game, answer):
 
                     return True
 
-                await bot.wait_for_message(author=game.board.state.president, check=check_veto, timeout=30)
+                #await bot.wait_for_message(author=game.board.state.president, check=check_veto, timeout=30)
+                await bot.wait_for('message', check=check_veto, timeout=30)
 
                 await choose_veto(bot, game, veto)
 
 
             else:
                 log.info("Player %s (%d) chose a %s policy" % (game.board.state.chancellor.name, game.board.state.chancellor.user.id, answer))
-                await game.board.state.chancellor.send("The policy %s will be enacted!" % answer)
+                await game.board.state.chancellor.user.send("The policy %s will be enacted!" % answer)
                 # remove policy from drawn cards and enact, discard the other card
                 for i in range(2):
                     if game.board.state.drawn_policies[i] == answer:
@@ -598,7 +615,7 @@ async def pass_two_policies(bot, game):
     enacted = None
     def check_policies(msg):
         msg_content = msg.content.strip()
-        if not msg_content.startsWith(PREFIX):
+        if not msg_content.startswith(PREFIX):
             return False
 
         cmd, *args = msg_content.split()
@@ -622,7 +639,7 @@ async def pass_two_policies(bot, game):
 
     def check_policies_noveto(msg):
         msg_content = msg.content.strip()
-        if not msg_content.startsWith(PREFIX):
+        if not msg_content.startswith(PREFIX):
             return False
 
         cmd, *args = msg_content.split()
@@ -647,21 +664,24 @@ async def pass_two_policies(bot, game):
                          "President %s gave two policies to Chancellor %s." % (
                              game.board.state.president.name, game.board.state.chancellor.name))
 
-        await game.board.state.chancellor.send("President %s gave you the following 2 policies:\n%s\n Enact one of them using sh?enact <id>. You can also use your Veto power: sh?veto. You have 30 seconds." % (game.board.state.president.name, policy_str))
+        await game.board.state.chancellor.user.send("President %s gave you the following 2 policies:\n%s\n Enact one of them using sh?enact <id>. You can also use your Veto power: sh?veto. You have 30 seconds." % (game.board.state.president.name, policy_str))
 
-        await bot.wait_for_message(author=game.board.state.chancellor, check=check_policies, timeout=30)
+        #await bot.wait_for_message(author=game.board.state.chancellor, check=check_policies, timeout=30)
+        await bot.wait_for('message', check=check_policies, timeout=30)
         await choose_policy(bot, game, "veto" if veto else game.board.state.drawn_policies[enacted] if enacted else random.choice(game.board.state.drawn_policies))
 
     elif game.board.state.veto_refused:
-        await game.board.state.chancellor.send("President %s refused your Veto. Now you have to choose. Which one do you want to enact?" % game.board.state.president.name)
+        await game.board.state.chancellor.user.send("President %s refused your Veto. Now you have to choose. Which one do you want to enact?" % game.board.state.president.name)
 
-        await bot.wait_for_message(author=game.board.state.chancellor, check=check_policies_noveto, timeout=30)
+        #await bot.wait_for_message(author=game.board.state.chancellor, check=check_policies_noveto, timeout=30)
+        await bot.wait_for('message', check=check_policies_noveto, timeout=30)
         await choose_policy(bot, game, game.board.state.drawn_policies[enacted] if enacted else random.choice(game.board.state.drawn_policies))
 
     elif game.board.state.fascist_track < 5:
-        await game.board.state.chancellor.send("President %s gave you the following 2 policies. Which one do you want to enact?" % game.board.state.president.name)
+        await game.board.state.chancellor.user.send("President %s gave you the following 2 policies. Which one do you want to enact?" % game.board.state.president.name)
 
-        await bot.wait_for_message(author=game.board.state.chancellor, check=check_policies_noveto, timeout=30)
+        #await bot.wait_for_message(author=game.board.state.chancellor, check=check_policies_noveto, timeout=30)
+        await bot.wait_for('message', check=check_policies_noveto, timeout=30)
         await choose_policy(bot, game, game.board.state.drawn_policies[enacted] if enacted else random.choice(game.board.state.drawn_policies))
 
 
@@ -799,7 +819,7 @@ async def action_kill(bot, game):
     killed_uid = None
     def check_kill(msg):
         msg_content = msg.content.strip()
-        if not msg_content.startsWith(PREFIX):
+        if not msg_content.startswith(PREFIX):
             return False
 
         cmd, *args = msg_content.split()
@@ -818,7 +838,8 @@ async def action_kill(bot, game):
 
         return True
 
-    await bot.wait_for_message(author=game.board.state.chancellor, check=check_kill, timeout=30)
+    #await bot.wait_for_message(author=game.board.state.chancellor, check=check_kill, timeout=30)
+    await bot.wait_for('message', check=check_kill, timeout=30)
     await choose_kill(bot, game, killed_uid if killed_uid else random.choice(game.playerlist.keys()))
 
 
@@ -862,7 +883,7 @@ async def action_choose(bot, game):
 
     def check_choose(msg):
         msg_content = msg.content.strip()
-        if not msg_content.startsWith(PREFIX):
+        if not msg_content.startswith(PREFIX):
             return False
 
         cmd, *args = msg_content.split()
@@ -884,9 +905,9 @@ async def action_choose(bot, game):
     await game.board.state.president.user.send(game.board.print_board())
     await game.board.state.president.user.send('You get to choose the next presidential candidate. Afterwards the order resumes back to normal. Choose wisely! Your choices are:\n{}\n You have 30 seconds. Use sh?choose <id>'.format(players_str))
 
-    await bot.wait_for_message(author=game.board.state.president, check=check_choose, timeout=30)
+    #await bot.wait_for_message(author=game.board.state.president, check=check_choose, timeout=30)
+    await bot.wait_for('message', check=check_choose, timeout=30)
     await choose_choose(bot, game, chosen_uid if chosen_uid else random.choice(game.playerlist.keys()))
-
 
 async def choose_choose(bot, game, answer):
     log.info('choose_choose called')
@@ -916,7 +937,7 @@ async def action_inspect(bot, game):
     inspect_uid = None
     def check_inspect(msg):
         msg_content = msg.content.strip()
-        if not msg_content.startsWith(PREFIX):
+        if not msg_content.startswith(PREFIX):
             return False
 
         cmd, *args = msg_content.split()
@@ -939,7 +960,8 @@ async def action_inspect(bot, game):
     await game.board.state.president.user.send(game.board.print_board())
     await game.board.state.president.user.send('You may see the party membership of one player. Which do you want to know? Choose wisely!\nYour choices are:{}\n\n You have 30 seconds. Use sh?inspect <id>.'.format(players_str))
 
-    await bot.wait_for_message(author=game.board.state.president, check=check_inspect, timeout=30)
+    #await bot.wait_for_message(author=game.board.state.president, check=check_inspect, timeout=30)
+    await bot.wait_for('message', check=check_inspect, timeout=30)
     await choose_inspect(bot, game, inspect_uid if inspect_uid else random.choice(game.playerlist.keys()))
 
 
