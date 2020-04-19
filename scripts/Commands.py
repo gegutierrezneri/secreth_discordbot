@@ -354,13 +354,13 @@ async def choose_chancellor(bot, game):
 
 
     # Pick a random chancellor if they don't pick within 30 seconds
-    #chan_msg = await bot.wait_for_message(author=game.board.state.nominated_president, check=check_chancellor, timeout=30)
     try:
         chan_msg = await bot.wait_for('message', check=check_chancellor, timeout=30)
         cmd, *args = chan_msg.content.strip().split()
         chan_num = int(args[0])
     except asyncio.TimeoutError:
-        chan_num = None
+        log.info('choose_chancellor timed out - random chancellor chosen')
+        chan_num = random.choice([i for i, p in enumerate(btns)])
     await nominate_chosen_chancellor(bot,
                                      game.channel.id,
                                      btns[chan_num-1]['uid'] if chan_num else random.choice(list(game.playerlist.keys()))
@@ -388,50 +388,51 @@ async def nominate_chosen_chancellor(bot, cid, chosen_uid):
 
 async def vote(bot, game):
     log.info('vote called')
+    voted_msg = await game.channel.send(embed=discord.Embed(title="Voted:", description="*Nobody has voted*"))
     for uid in game.playerlist:
         if monotonic() > game.playerlist[uid].last_input + 20:
             game.playerlist[uid].is_dead = True
         if not game.playerlist[uid].is_dead:
-            await game.channel.send('Awaiting {}\'s vote...'.format(game.playerlist[uid].name))
             if game.playerlist[uid] is not game.board.state.nominated_president:
                 # the nominated president already got the board before nominating a chancellor
                 await game.playerlist[uid].user.send(game.board.print_board())
             await game.playerlist[uid].user.send(
                              "Do you want to elect President %s and Chancellor %s? Say sh?ja or sh?nein to continue. You have 30 seconds." % (
                                  game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name))
-
-            vote = None
-            def check_vote(msg):
-                global vote
-
-                msg_content = msg.content.strip()
-                if not msg_content.startswith(PREFIX):
-                    return False
-
-                cmd, *args = msg_content.split()
-                cmd = cmd[len(PREFIX):].lower().strip()
-
-                if cmd == "ja":
-                    vote = True
-                elif cmd == "nein":
-                    vote = False
-                else:
-                    return False
-
+    while True:
+        def check_vote(msg):
+            msg_content = msg.content.strip()
+            if not msg_content.startswith(PREFIX):
+                return False
+            cmd, *args = msg_content.split()
+            cmd = cmd[len(PREFIX):].lower().strip()
+            if cmd in ("ja", "nein"):
                 return True
-
-            voted_msg = await game.channel.send(embed=discord.Embed(title="Voted:", description="*Nobody has voted*"))
-
-            #await bot.wait_for_message(author=game.playerlist[uid], check=check_vote, timeout=30)
-            await bot.wait_for('message', check=check_vote, timeout=30)
-            await handle_voting(bot, game, game.playerlist[uid], vote if vote else True, voted_msg)
+            else:
+                return False
+        try:
+            msg = await bot.wait_for('message', check=check_vote, timeout=30)
+            cmd, *args = msg.content.strip().split()
+            cmd = cmd[len(PREFIX):].lower().strip()
+            vote = True if cmd == "ja" else False
+            uid = msg.author.id
+        except asyncio.TimeoutError:
+            log.info('timeout while waiting for player votes, {} remaining'.format(
+                len(game.board.state.last_votes) - len(game.player_sequence))
+            )
+            continue
+        last_vote = await handle_voting(bot, game, game.playerlist[uid], vote, voted_msg)
+        if last_vote:
+            log.info('last vote received, voting closes.')
+            break
+    await count_votes(bot, game)
 
 
 async def handle_voting(bot, game, player, vote, voted_msg):
     try:
         answer = "Ja" if vote else "Nein"
 
-        await player.user.send("Thank you for your vote: %s to a President %s and a Chancellor %s" % (vote, game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name))
+        await player.user.send("Thank you for your vote: %s to a President %s and a Chancellor %s" % (answer, game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name))
 
         await voted_msg.edit(embed=discord.Embed(title="Voted:", description=voted_msg.embeds[0].description + "\n- " + player.name if not voted_msg.embeds[0].description == "*Nobody has voted*" else "- " + player.name))
 
@@ -439,7 +440,8 @@ async def handle_voting(bot, game, player, vote, voted_msg):
         if player.user.id not in game.board.state.last_votes:
             game.board.state.last_votes[player.user.id] = answer
         if len(game.board.state.last_votes) == len(game.player_sequence):
-            await count_votes(bot, game)
+            return True
+        return False
     except:
         log.error("handle_voting: Game or board should not be None!")
 
