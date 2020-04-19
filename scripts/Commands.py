@@ -512,8 +512,9 @@ async def draw_policies(bot, game):
     for i in range(3):
         game.board.state.drawn_policies.append(game.board.policies.pop(0))
 
-    discarded = None
     def check_discard(msg):
+        if not msg.author==game.board.state.president.user:
+            return False
         msg_content = msg.content.strip()
         if not msg_content.startswith(PREFIX):
             return False
@@ -535,13 +536,18 @@ async def draw_policies(bot, game):
 
     policy_str = ""
     for i, p in enumerate(game.board.state.drawn_policies):
-        policy_str += ("[" + str(i) + "] " + p + "\n")
+        policy_str += ("[" + str(i+1) + "] " + p + "\n")
 
-    await game.board.state.president.user.send("You drew the following 3 policies: {}\nWhich one do you want to discard? Use sh?discard <id>.".format(policy_str))
-    #await bot.wait_for_message(author=game.board.state.president.user, check=check_discard, timeout=30)
-    await bot.wait_for('message', check=check_discard, timeout=30)
+    await game.board.state.president.user.send("You drew the following 3 policies:\n{}\nWhich one do you want to discard? Use sh?discard <id>.".format(policy_str))
+    try:
+        msg = await bot.wait_for('message', check=check_discard, timeout=30)
+        cmd, *args = msg.content.strip().split()
+        discarded = int(args[0])
+    except asyncio.TimeoutError:
+        log.info('draw_policies timed out - random policy discarded')
+        discarded = random.randrange(1, 4)
 
-    await choose_policy(bot, game, game.board.state.drawn_policies[discarded-1] if discarded else random.choice(game.board.state.drawn_policies))
+    await choose_policy(bot, game, game.board.state.drawn_policies[discarded-1])
 
 async def choose_policy(bot, game, answer):
     log.info('choose_policy called')
