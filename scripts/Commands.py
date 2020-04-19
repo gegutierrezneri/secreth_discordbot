@@ -303,13 +303,16 @@ async def choose_chancellor(bot, game):
         pres_uid = game.board.state.president.user.id
     if game.board.state.chancellor is not None:
         chan_uid = game.board.state.chancellor.user.id
+    log.info('currently president: {} and chancellor: {}'.format(game.board.state.president, game.board.state.chancellor))
     for uid in game.playerlist:
         # If there are only five players left in the
         # game, only the last elected Chancellor is
         # ineligible to be Chancellor Candidate; the
         # last President may be nominated.
-        if monotonic() > game.playerlist[uid].last_input + 20:
-            game.playerlist[uid].is_dead = True
+
+        # This is intended to kill off AFK players, but effectively kills all games since the last_input is never reset...
+        #if monotonic() > game.playerlist[uid].last_input + 20:
+            #game.playerlist[uid].is_dead = True
         if len(game.player_sequence) > 5:
             if uid != game.board.state.nominated_president.user.id and game.playerlist[
                 uid].is_dead == False and uid != pres_uid and uid != chan_uid:
@@ -390,8 +393,10 @@ async def vote(bot, game):
     log.info('vote called')
     voted_msg = await game.channel.send(embed=discord.Embed(title="Voted:", description="*Nobody has voted*"))
     for uid in game.playerlist:
-        if monotonic() > game.playerlist[uid].last_input + 20:
-            game.playerlist[uid].is_dead = True
+        log.info('voting instructions sent to {}'.format(game.playerlist[uid].user.name))
+        # This is intended to kill off AFK players, but effectively kills all games since the last_input is never reset...
+        #if monotonic() > game.playerlist[uid].last_input + 20:
+            #game.playerlist[uid].is_dead = True
         if not game.playerlist[uid].is_dead:
             if game.playerlist[uid] is not game.board.state.nominated_president:
                 # the nominated president already got the board before nominating a chancellor
@@ -503,7 +508,7 @@ async def draw_policies(bot, game):
     log.info('draw_policies called')
     game.board.state.veto_refused = False
     # shuffle discard pile with rest if rest < 3
-    shuffle_policy_pile(bot, game)
+    await shuffle_policy_pile(bot, game)
     for i in range(3):
         game.board.state.drawn_policies.append(game.board.policies.pop(0))
 
@@ -799,7 +804,7 @@ async def action_policy(bot, game):
     log.info('action_policy called')
     topPolicies = ""
     # shuffle discard pile with rest if rest < 3
-    shuffle_policy_pile(bot, game)
+    await shuffle_policy_pile(bot, game)
     for i in range(3):
         topPolicies += game.board.policies[i] + "\n"
     await game.board.state.president.user.send(
