@@ -423,7 +423,7 @@ async def vote(bot, game):
             uid = msg.author.id
         except asyncio.TimeoutError:
             log.info('timeout while waiting for player votes, {} remaining'.format(
-                len(game.board.state.last_votes) - len(game.player_sequence))
+                len(game.player_sequence)- len(game.board.state.last_votes))
             )
             continue
         last_vote = await handle_voting(bot, game, game.playerlist[uid], vote, voted_msg)
@@ -622,11 +622,12 @@ async def pass_two_policies(bot, game):
 
     policy_str = ""
     for i, p in enumerate(game.board.state.drawn_policies):
-        policy_str += ("[" + str(i) + "] " + p + "\n")
+        policy_str += ("[" + str(i+1) + "] " + p + "\n")
 
     veto = False
-    enacted = None
     def check_policies(msg):
+        if not msg.author==game.board.state.chancellor.user:
+            return False
         msg_content = msg.content.strip()
         if not msg_content.startswith(PREFIX):
             return False
@@ -651,6 +652,8 @@ async def pass_two_policies(bot, game):
         return True
 
     def check_policies_noveto(msg):
+        if not msg.author==game.board.state.chancellor.user:
+            return False
         msg_content = msg.content.strip()
         if not msg_content.startswith(PREFIX):
             return False
@@ -679,23 +682,29 @@ async def pass_two_policies(bot, game):
 
         await game.board.state.chancellor.user.send("President %s gave you the following 2 policies:\n%s\n Enact one of them using sh?enact <id>. You can also use your Veto power: sh?veto. You have 30 seconds." % (game.board.state.president.name, policy_str))
 
-        #await bot.wait_for_message(author=game.board.state.chancellor, check=check_policies, timeout=30)
-        await bot.wait_for('message', check=check_policies, timeout=30)
-        await choose_policy(bot, game, "veto" if veto else game.board.state.drawn_policies[enacted] if enacted else random.choice(game.board.state.drawn_policies))
+        try:
+            msg = await bot.wait_for('message', check=check_policies, timeout=30)
+            cmd, *args = msg.content.strip().split()
+            if cmd == "veto":
+                enacted_policy = "veto"
+            else:
+                enacted_policy = game.board.state.drawn_policies[int(args[0])-1]
+            await enact_policy(bot, game, enacted_policy, False)
 
-    elif game.board.state.veto_refused:
-        await game.board.state.chancellor.user.send("President %s refused your Veto. Now you have to choose. Which one do you want to enact?" % game.board.state.president.name)
+    else:
+        if game.board.state.veto_refused:
+            await game.board.state.chancellor.user.send("President {} refused your Veto. Now you have to choose from the following policies:\n{}\nWhich one do you want to enact? Use sh?enact <id>".format(game.board.state.president.name, policy_str))
+        elif game.board.state.fascist_track < 5:
+            await game.board.state.chancellor.user.send("President {} gave you the following 2 policies:\n{}\nWhich one do you want to enact? Use sh?enact <id>".format(game.board.state.president.name, policy_str))
 
-        #await bot.wait_for_message(author=game.board.state.chancellor, check=check_policies_noveto, timeout=30)
-        await bot.wait_for('message', check=check_policies_noveto, timeout=30)
-        await choose_policy(bot, game, game.board.state.drawn_policies[enacted] if enacted else random.choice(game.board.state.drawn_policies))
-
-    elif game.board.state.fascist_track < 5:
-        await game.board.state.chancellor.user.send("President %s gave you the following 2 policies. Which one do you want to enact?" % game.board.state.president.name)
-
-        #await bot.wait_for_message(author=game.board.state.chancellor, check=check_policies_noveto, timeout=30)
-        await bot.wait_for('message', check=check_policies_noveto, timeout=30)
-        await choose_policy(bot, game, game.board.state.drawn_policies[enacted] if enacted else random.choice(game.board.state.drawn_policies))
+        try:
+            msg = await bot.wait_for('message', check=check_policies_noveto, timeout=30)
+            cmd, *args = msg.content.strip().split()
+            enacted = int(args[0])
+        except asyncio.TimeoutError:
+            log.info('pass_two_policies timed out - random policy enacted')
+            enacted = random.randrange(1,3)
+        await enact_policy(bot, game, game.board.state.drawn_policies[enacted-1], False)
 
 
 async def enact_policy(bot, game, policy, anarchy):
