@@ -70,7 +70,7 @@ async def command_start(bot, msg, args):
 
 async def command_rules(bot, msg, args):
     """Sends a link to the official Secret Hitler rules."""
-    await msg.channel.send(discord.Embed(title="Read the official Secret Hitler rules", description="http://www.secrethitler.com/assets/Secret_Hitler_Rules.pdf"))
+    await msg.channel.send(embed=discord.Embed(title="Read the official Secret Hitler rules", description="http://www.secrethitler.com/assets/Secret_Hitler_Rules.pdf"))
 
 
 # pings the bot
@@ -82,7 +82,7 @@ async def command_ping(bot, msg, args):
 
     diff = round((t2 - t1) * 1000, 2)
 
-    await pong_msg.edit(':ping_pong: Pong **{} ms**'.format(diff))
+    await pong_msg.edit(content=':ping_pong: Pong **{} ms**'.format(diff))
 
 
 async def command_invite(bot, msg, args):
