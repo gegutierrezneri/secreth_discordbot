@@ -336,31 +336,24 @@ async def choose_chancellor(bot, game):
     def check_chancellor(msg):
         if not msg.author==game.board.state.nominated_president.user:
             return False
-
-        msg_content = msg.content.strip()
-        if not msg_content.startswith(PREFIX):
+        validation = validate_message(msg)
+        if not validation:
             return False
-
-        cmd, *args = msg_content.split()
-        cmd = cmd[len(PREFIX):].lower().strip()
-
+        cmd, arg = validation
         if not cmd == "chan":
             return False
-
         try:
-            if not int(args[0]) > 0 or not int(args[0]) <= len(game.playerlist)-1:
+            if not int(arg) > 0 or not int(arg) <= len(game.playerlist)-1:
                 return False
         except Exception:
             return False
-
         return True
-
 
     # Pick a random chancellor if they don't pick within 30 seconds
     try:
-        chan_msg = await bot.wait_for('message', check=check_chancellor, timeout=30)
-        cmd, *args = chan_msg.content.strip().split()
-        chan_num = int(args[0])
+        msg = await bot.wait_for('message', check=check_chancellor, timeout=30)
+        cmd, arg = validate_message(msg)
+        chan_num = int(arg)
     except asyncio.TimeoutError:
         log.info('choose_chancellor timed out - random chancellor chosen')
         chan_num = random.choice([i for i, p in enumerate(btns)])
@@ -406,19 +399,17 @@ async def vote(bot, game):
                                  game.board.state.nominated_president.name, game.board.state.nominated_chancellor.name))
     while True:
         def check_vote(msg):
-            msg_content = msg.content.strip()
-            if not msg_content.startswith(PREFIX):
+            validation = validate_message(msg)
+            if not validation:
                 return False
-            cmd, *args = msg_content.split()
-            cmd = cmd[len(PREFIX):].lower().strip()
+            cmd, _ = validation
             if cmd in ("ja", "nein"):
                 return True
             else:
                 return False
         try:
             msg = await bot.wait_for('message', check=check_vote, timeout=30)
-            cmd, *args = msg.content.strip().split()
-            cmd = cmd[len(PREFIX):].lower().strip()
+            cmd, _ = validate_message(msg)
             vote = True if cmd == "ja" else False
             uid = msg.author.id
         except asyncio.TimeoutError:
@@ -515,23 +506,18 @@ async def draw_policies(bot, game):
     def check_discard(msg):
         if not msg.author==game.board.state.president.user:
             return False
-        msg_content = msg.content.strip()
-        if not msg_content.startswith(PREFIX):
+        validation = validate_message(msg)
+        if not validation:
             return False
-
-        cmd, *args = msg_content.split()
-        cmd = cmd[len(PREFIX):].lower().strip()
-
+        cmd, arg = validation
         if not cmd == "discard":
             return False
-
         try:
-            discarded = int( args[0] )
+            discarded = int(arg)
             if not discarded > 0 or not discarded <= 3:
                 return False
         except Exception:
             return False
-
         return True
 
     policy_str = ""
@@ -541,8 +527,8 @@ async def draw_policies(bot, game):
     await game.board.state.president.user.send("You drew the following 3 policies:\n{}\nWhich one do you want to discard? Use sh?discard <id>.".format(policy_str))
     try:
         msg = await bot.wait_for('message', check=check_discard, timeout=30)
-        cmd, *args = msg.content.strip().split()
-        discarded = int(args[0])
+        _, arg = validate_message(msg)
+        discarded = int(arg)
     except asyncio.TimeoutError:
         log.info('draw_policies timed out - random policy discarded')
         discarded = random.randrange(1, 4)
@@ -579,19 +565,16 @@ async def choose_policy(bot, game, answer):
                 veto = None
                 def check_veto(msg):
                     msg_content = msg.content.strip()
-                    if not msg_content.startswith(PREFIX):
+                    validation = validate_message(msg)
+                    if not validation:
                         return False
-
-                    cmd, *args = msg_content.split()
-                    cmd = cmd[len(PREFIX):].lower().strip()
-
+                    cmd, _ = validation
                     if cmd == "veto":
                         veto = False
                     elif cmd == "noveto":
                         veto = True
                     else:
                         return False
-
                     return True
 
                 #await bot.wait_for_message(author=game.board.state.president, check=check_veto, timeout=30)
@@ -628,46 +611,35 @@ async def pass_two_policies(bot, game):
     def check_policies(msg):
         if not msg.author==game.board.state.chancellor.user:
             return False
-        msg_content = msg.content.strip()
-        if not msg_content.startswith(PREFIX):
+        validation = validate_message(msg)
+        if not validation:
             return False
-
-        cmd, *args = msg_content.split()
-        cmd = cmd[len(PREFIX):].lower().strip()
-
+        cmd, arg = validation
         if cmd == "enact":
             try:
-                id = int(args[0])
+                id = int(arg)
                 if id > 0 and id <= len(game.board.state.drawn_policies):
-                    enacted = id
                     return True
-
             except Exception:
                 return False
         elif cmd == "veto":
             veto = True
         else:
             return False
-
         return True
 
     def check_policies_noveto(msg):
         if not msg.author==game.board.state.chancellor.user:
             return False
-        msg_content = msg.content.strip()
-        if not msg_content.startswith(PREFIX):
+        validation = validate_message(msg)
+        if not validation:
             return False
-
-        cmd, *args = msg_content.split()
-        cmd = cmd[len(PREFIX):].lower().strip()
-
+        cmd, arg = validation
         if cmd == "enact":
             try:
-                id = int(args[0])
+                id = int(arg)
                 if id > 0 and id <= len(game.board.state.drawn_policies):
-                    enacted = id
                     return True
-
             except Exception:
                 return False
         else:
@@ -684,11 +656,11 @@ async def pass_two_policies(bot, game):
 
         try:
             msg = await bot.wait_for('message', check=check_policies, timeout=30)
-            cmd, *args = msg.content.strip().split()
+            cmd, arg = validate_message(msg)
             if cmd == "veto":
                 enacted_policy = "veto"
             else:
-                enacted_policy = game.board.state.drawn_policies[int(args[0])-1]
+                enacted_policy = game.board.state.drawn_policies[int(arg)-1]
         except asyncio.TimeoutError:
             log.info('pass_two_policies timed out - random policy enacted')
             enacted_policy = game.board.state.drawn_policies[random.randrange(1,3)]
@@ -702,8 +674,8 @@ async def pass_two_policies(bot, game):
 
         try:
             msg = await bot.wait_for('message', check=check_policies_noveto, timeout=30)
-            cmd, *args = msg.content.strip().split()
-            enacted = int(args[0])
+            _, arg = validate_message(msg)
+            enacted = int(arg)
         except asyncio.TimeoutError:
             log.info('pass_two_policies timed out - random policy enacted')
             enacted = random.randrange(1,3)
@@ -844,15 +816,13 @@ async def action_kill(bot, game):
     killed_uid = None
     def check_kill(msg):
         msg_content = msg.content.strip()
-        if not msg_content.startswith(PREFIX):
+        validation = validate_message(msg)
+        if not validation:
             return False
-
-        cmd, *args = msg_content.split()
-        cmd = cmd[len(PREFIX):].lower().strip()
-
+        cmd, arg = validation
         if cmd == "kill":
             try:
-                id = int(args[0])
+                id = int(arg)
                 if id > 0 and id <= len(game.playerlist):
                     killed_uid = id
                     return True
@@ -860,7 +830,6 @@ async def action_kill(bot, game):
                 return False
         else:
             return False
-
         return True
 
     #await bot.wait_for_message(author=game.board.state.chancellor, check=check_kill, timeout=30)
@@ -908,15 +877,11 @@ async def action_choose(bot, game):
 
     def check_choose(msg):
         msg_content = msg.content.strip()
-        if not msg_content.startswith(PREFIX):
-            return False
-
-        cmd, *args = msg_content.split()
-        cmd = cmd[len(PREFIX):].lower().strip()
-
+        validation = validate_message(msg)
+        cmd, arg = validation
         if cmd == "choose":
             try:
-                id = int(args[0])
+                id = int(arg)
                 if id > 0 and id <= len(game.playerlist):
                     chosen_uid = id
                     return True
@@ -962,15 +927,11 @@ async def action_inspect(bot, game):
     inspect_uid = None
     def check_inspect(msg):
         msg_content = msg.content.strip()
-        if not msg_content.startswith(PREFIX):
-            return False
-
-        cmd, *args = msg_content.split()
-        cmd = cmd[len(PREFIX):].lower().strip()
-
+        validation = validate_message(msg)
+        cmd, arg = validation
         if cmd == "inspect":
             try:
-                id = int(args[0])
+                id = int(arg)
                 if id > 0 and id <= len(game.playerlist):
                     inspect_uid = id
                     return True
@@ -1170,3 +1131,15 @@ async def shuffle_policy_pile(bot, game):
         game.board.discards = []
         await game.channel.send(
                          "There were not enough cards left on the policy pile so I shuffled the rest with the discard pile!")
+
+def validate_message(msg):
+    """
+    Returns False if not a valid command. Otherwise return the command and the first argument.
+    """
+    msg_content = msg.content.strip()
+    if not msg_content.startswith(PREFIX):
+        return False
+    cmd, *args = msg_content.split()
+    cmd = cmd[len(PREFIX):].lower().strip()
+    arg = args[0] if len(args) else None
+    return (cmd, arg)
