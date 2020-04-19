@@ -689,7 +689,10 @@ async def pass_two_policies(bot, game):
                 enacted_policy = "veto"
             else:
                 enacted_policy = game.board.state.drawn_policies[int(args[0])-1]
-            await enact_policy(bot, game, enacted_policy, False)
+        except asyncio.TimeoutError:
+            log.info('pass_two_policies timed out - random policy enacted')
+            enacted_policy = game.board.state.drawn_policies[random.randrange(1,3)]
+        await choose_policy(bot, game, enacted_policy)
 
     else:
         if game.board.state.veto_refused:
@@ -704,7 +707,7 @@ async def pass_two_policies(bot, game):
         except asyncio.TimeoutError:
             log.info('pass_two_policies timed out - random policy enacted')
             enacted = random.randrange(1,3)
-        await enact_policy(bot, game, game.board.state.drawn_policies[enacted-1], False)
+        await choose_policy(bot, game, game.board.state.drawn_policies[enacted-1])
 
 
 async def enact_policy(bot, game, policy, anarchy):
