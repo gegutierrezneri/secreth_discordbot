@@ -200,7 +200,7 @@ async def command_join(bot, msg, args):
                                              "You joined a game in %s. I will soon tell you your secret role." % group_name)
                             game.add_player(uid, player)
                             if len(game.playerlist) > 4:
-                                await game.channel(
+                                await game.channel.send(
                                                  fname + " has joined the game. Type sh?startgame if this was the last player and you want to start with %d players!" % len(
                                                      game.playerlist))
                             else:
@@ -1078,6 +1078,10 @@ def print_player_info(player_number):
         return "There are 5 Liberals, 3 Fascists and Hitler. Hitler doesn't know who the Fascists are."
     elif player_number == 10:
         return "There are 6 Liberals, 3 Fascists and Hitler. Hitler doesn't know who the Fascists are."
+    elif player_number == 3:
+        return "There is 1 Liberal, 1 Fascist and Hitler. Hitler doesn't know who the Fascist is. This is only for testing."
+    elif player_number == 4:
+        return "There is 2 Liberals, 1 Fascist and Hitler. Hitler doesn't know who the Fascist is. This is only for testing."
 
 
 async def inform_fascists(bot, game, player_number):
