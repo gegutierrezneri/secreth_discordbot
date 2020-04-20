@@ -930,22 +930,20 @@ async def choose_choose(bot, game, answer):
 
 async def action_inspect(bot, game):
     log.info('action_inspect called')
-    players_str = ""
+    btns = []
     for i, uid in enumerate(game.playerlist):
         if uid != game.board.state.president.user.id and game.playerlist[uid].is_dead == False:
             name = game.playerlist[uid].name
-            players_str += ("["+ str(i) +"] " + name + "\n")
-
-    inspect_uid = None
+            btns.append({'name': name, 'uid': uid})
     def check_inspect(msg):
-        msg_content = msg.content.strip()
+        if not msg.author==game.board.state.president.user:
+            return False
         validation = validate_message(msg)
         cmd, arg = validation
         if cmd == "inspect":
             try:
                 id = int(arg)
                 if id > 0 and id <= len(game.playerlist):
-                    inspect_uid = id
                     return True
             except Exception:
                 return False
@@ -954,13 +952,21 @@ async def action_inspect(bot, game):
 
         return True
 
-
     await game.board.state.president.user.send(game.board.print_board())
-    await game.board.state.president.user.send('You may see the party membership of one player. Which do you want to know? Choose wisely!\nYour choices are:{}\n\n You have 30 seconds. Use sh?inspect <id>.'.format(players_str))
-
-    #await bot.wait_for_message(author=game.board.state.president, check=check_inspect, timeout=30)
-    await bot.wait_for('message', check=check_inspect, timeout=30)
-    await choose_inspect(bot, game, inspect_uid if inspect_uid else random.choice(game.playerlist.keys()))
+    await game.board.state.president.user.send('You may see the party membership of one player. Which do you want to know? Choose wisely!\nYour choices are:{}\n\n You have 30 seconds. Use sh?inspect <id>.'
+                                               .format(
+                                                   "\n".join("[" + str(i+1) + "]" + p['name'] for i, p in enumerate(btns))
+                                               )
+    )
+    try:
+       msg =  await bot.wait_for('message', check=check_inspect, timeout=30)
+       _, arg = validate_message(msg)
+       inspect_id = int(arg)
+    except asyncio.TimeoutError:
+        log.info('action_inspect timed out - random target chosen')
+        inspect_id = random.choice([i for i in range(1, len(btns)+1)])
+    inspect_uid = btns[inspect_id-1]['uid']
+    await choose_inspect(bot, game, inspect_uid)
 
 
 async def choose_inspect(bot, game, answer):
