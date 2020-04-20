@@ -343,7 +343,7 @@ async def choose_chancellor(bot, game):
         if not cmd == "chan":
             return False
         try:
-            if not int(arg) > 0 or not int(arg) <= len(game.playerlist)-1:
+            if not int(arg) > 0 or not int(arg) <= len(btns):
                 return False
         except Exception:
             return False
@@ -557,14 +557,13 @@ async def choose_policy(bot, game, answer):
                 await game.channel.send(
                                  "Chancellor %s suggested a Veto to President %s." % (
                                      game.board.state.chancellor.name, game.board.state.president.name))
-
                 await game.board.state.president.user.send("Chancellor %s suggested a Veto to you. Do you want to veto (discard) these cards?" % game.board.state.chancellor.name)
                 await game.board.state.president.user.send("Say sh?noveto to accept the suggestion. Say sh?veto to reject it. You have 30 seconds.")
-
                 # veto: if the policy can be passed
                 veto = None
                 def check_veto(msg):
-                    msg_content = msg.content.strip()
+                    if not msg.author==game.board.state.president.user:
+                        return False
                     validation = validate_message(msg)
                     if not validation:
                         return False
@@ -576,13 +575,14 @@ async def choose_policy(bot, game, answer):
                     else:
                         return False
                     return True
-
-                #await bot.wait_for_message(author=game.board.state.president, check=check_veto, timeout=30)
-                await bot.wait_for('message', check=check_veto, timeout=30)
-
+                try:
+                    msg = await bot.wait_for('message', check=check_veto, timeout=30)
+                    cmd, _ = validate_message(msg)
+                    veto = cmd == "noveto"
+                except asyncio.TimeoutError:
+                    log.info('choose_policy timed out while waiting for veto, random decision made')
+                    veto = random.choice((True, False))
                 await choose_veto(bot, game, veto)
-
-
             else:
                 log.info("Player %s (%d) chose a %s policy" % (game.board.state.chancellor.name, game.board.state.chancellor.user.id, answer))
                 await game.board.state.chancellor.user.send("The policy %s will be enacted!" % answer)
