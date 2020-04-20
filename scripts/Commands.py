@@ -804,18 +804,21 @@ async def action_policy(bot, game):
 
 async def action_kill(bot, game):
     log.info('action_kill called')
-    people_str = ""
+    btns = []
     for uid in game.playerlist:
         if uid != game.board.state.president.user.id and game.playerlist[uid].is_dead == False:
             name = game.playerlist[uid].name
-            people_str += ("[" + str(uid) + "] "+ name + "\n")
+            btns.append({'name': name, 'uid': uid})
 
     await game.board.state.president.user.send(game.board.print_board())
-    await game.board.state.president.user.send(people_str + '\n\nYou have to kill one person. You can discuss your decision with the others. Choose wisely!\nUse sh?kill <id> to kill. You have 30 seconds.')
-
-    killed_uid = None
+    await game.board.state.president.user.send(
+        "You have to kill one person. You can discuss your decision with the others. Choose wisely!\nUse sh?kill <id> to kill.\n{}\nYou have 30 seconds.".format(
+            "\n".join("[" + str(i+1) + "] " + p['name'] for i, p in enumerate(btns))
+            )
+    )
     def check_kill(msg):
-        msg_content = msg.content.strip()
+        if not msg.author==game.board.state.president.user:
+            return False
         validation = validate_message(msg)
         if not validation:
             return False
@@ -823,18 +826,21 @@ async def action_kill(bot, game):
         if cmd == "kill":
             try:
                 id = int(arg)
-                if id > 0 and id <= len(game.playerlist):
-                    killed_uid = id
+                if id > 0 and id <= len(btns):
                     return True
             except Exception:
                 return False
         else:
             return False
-        return True
-
-    #await bot.wait_for_message(author=game.board.state.chancellor, check=check_kill, timeout=30)
-    await bot.wait_for('message', check=check_kill, timeout=30)
-    await choose_kill(bot, game, killed_uid if killed_uid else random.choice(game.playerlist.keys()))
+    try:
+        msg = await bot.wait_for('message', check=check_kill, timeout=30)
+        cmd, arg = validate_message(msg)
+        killed_id = int(arg)
+    except asyncio.TimeoutError:
+        log.info('action_kill timed out - random victim chosen')
+        killed_id = random.choice([i for i, p in enumerate(btns)])
+    killed_uid = btns[killed_id-1]['uid']
+    await choose_kill(bot, game, killed_uid)
 
 
 async def choose_kill(bot, game, answer):
