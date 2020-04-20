@@ -351,7 +351,7 @@ async def choose_chancellor(bot, game):
 
     # Pick a random chancellor if they don't pick within 30 seconds
     try:
-        msg = await bot.wait_for('message', check=check_chancellor, timeout=30)
+        msg = await bot.wait_for('message', check=check_chancellor, timeout=game.timeout)
         cmd, arg = validate_message(msg)
         chan_num = int(arg)
     except asyncio.TimeoutError:
@@ -408,7 +408,7 @@ async def vote(bot, game):
             else:
                 return False
         try:
-            msg = await bot.wait_for('message', check=check_vote, timeout=30)
+            msg = await bot.wait_for('message', check=check_vote, timeout=game.timeout)
             cmd, _ = validate_message(msg)
             vote = True if cmd == "ja" else False
             uid = msg.author.id
@@ -526,7 +526,7 @@ async def draw_policies(bot, game):
 
     await game.board.state.president.user.send("You drew the following 3 policies:\n{}\nWhich one do you want to discard? Use sh?discard <id>.".format(policy_str))
     try:
-        msg = await bot.wait_for('message', check=check_discard, timeout=30)
+        msg = await bot.wait_for('message', check=check_discard, timeout=game.timeout)
         _, arg = validate_message(msg)
         discarded = int(arg)
     except asyncio.TimeoutError:
@@ -576,7 +576,7 @@ async def choose_policy(bot, game, answer):
                         return False
                     return True
                 try:
-                    msg = await bot.wait_for('message', check=check_veto, timeout=30)
+                    msg = await bot.wait_for('message', check=check_veto, timeout=game.timeout)
                     cmd, _ = validate_message(msg)
                     veto = cmd == "noveto"
                 except asyncio.TimeoutError:
@@ -655,7 +655,7 @@ async def pass_two_policies(bot, game):
         await game.board.state.chancellor.user.send("President %s gave you the following 2 policies:\n%s\n Enact one of them using sh?enact <id>. You can also use your Veto power: sh?veto. You have 30 seconds." % (game.board.state.president.name, policy_str))
 
         try:
-            msg = await bot.wait_for('message', check=check_policies, timeout=30)
+            msg = await bot.wait_for('message', check=check_policies, timeout=game.timeout)
             cmd, arg = validate_message(msg)
             if cmd == "veto":
                 enacted_policy = "veto"
@@ -673,7 +673,7 @@ async def pass_two_policies(bot, game):
             await game.board.state.chancellor.user.send("President {} gave you the following 2 policies:\n{}\nWhich one do you want to enact? Use sh?enact <id>".format(game.board.state.president.name, policy_str))
 
         try:
-            msg = await bot.wait_for('message', check=check_policies_noveto, timeout=30)
+            msg = await bot.wait_for('message', check=check_policies_noveto, timeout=game.timeout)
             _, arg = validate_message(msg)
             enacted = int(arg)
         except asyncio.TimeoutError:
@@ -833,7 +833,7 @@ async def action_kill(bot, game):
         else:
             return False
     try:
-        msg = await bot.wait_for('message', check=check_kill, timeout=30)
+        msg = await bot.wait_for('message', check=check_kill, timeout=game.timeout)
         cmd, arg = validate_message(msg)
         killed_id = int(arg)
     except asyncio.TimeoutError:
@@ -902,7 +902,7 @@ async def action_choose(bot, game):
     )
 
     try:
-        msg = await bot.wait_for('message', check=check_choose, timeout=30)
+        msg = await bot.wait_for('message', check=check_choose, timeout=game.timeout)
         _, arg = validate_message(msg)
         chosen_id = int(arg)
     except asyncio.TimeoutError:
@@ -959,7 +959,7 @@ async def action_inspect(bot, game):
                                                )
     )
     try:
-       msg =  await bot.wait_for('message', check=check_inspect, timeout=30)
+       msg =  await bot.wait_for('message', check=check_inspect, timeout=game.timeout)
        _, arg = validate_message(msg)
        inspect_id = int(arg)
     except asyncio.TimeoutError:

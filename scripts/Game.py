@@ -8,6 +8,7 @@ class Game(object):
         self.channel = cid
         self.board = None
         self.initiator = initiator
+        self.timeout = None
 
     def add_player(self, uid, player):
         self.playerlist[uid] = player
