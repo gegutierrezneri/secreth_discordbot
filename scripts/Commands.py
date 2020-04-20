@@ -872,24 +872,20 @@ async def choose_kill(bot, game, answer):
 
 async def action_choose(bot, game):
     log.info('action_choose called')
-    players_str = ""
-
-    for i, uid in enumerate(game.playerlist):
+    btns = []
+    for uid in game.playerlist:
         if uid != game.board.state.president.user.id and game.playerlist[uid].is_dead == False:
             name = game.playerlist[uid].name
-            players_str += ("[" + str(i) + "] " + name + "\n")
-
-    chosen_uid = None
-
+            btns.append({'name': name, 'uid': uid})
     def check_choose(msg):
-        msg_content = msg.content.strip()
+        if not msg.author==game.board.state.president.user:
+            return False
         validation = validate_message(msg)
         cmd, arg = validation
         if cmd == "choose":
             try:
                 id = int(arg)
-                if id > 0 and id <= len(game.playerlist):
-                    chosen_uid = id
+                if id > 0 and id <= len(btns):
                     return True
             except Exception:
                 return False
@@ -899,11 +895,21 @@ async def action_choose(bot, game):
         return True
 
     await game.board.state.president.user.send(game.board.print_board())
-    await game.board.state.president.user.send('You get to choose the next presidential candidate. Afterwards the order resumes back to normal. Choose wisely! Your choices are:\n{}\n You have 30 seconds. Use sh?choose <id>'.format(players_str))
+    await game.board.state.president.user.send('You get to choose the next presidential candidate. Afterwards the order resumes back to normal. Choose wisely! Your choices are:\n{}\n You have 30 seconds. Use sh?choose <id>'
+                                               .format(
+                                                   "\n".join("[" + str(i+1) + "]" + p['name'] for i, p in enumerate(btns))
+                                               )
+    )
 
-    #await bot.wait_for_message(author=game.board.state.president, check=check_choose, timeout=30)
-    await bot.wait_for('message', check=check_choose, timeout=30)
-    await choose_choose(bot, game, chosen_uid if chosen_uid else random.choice(game.playerlist.keys()))
+    try:
+        msg = await bot.wait_for('message', check=check_choose, timeout=30)
+        _, arg = validate_message(msg)
+        chosen_id = int(arg)
+    except asyncio.TimeoutError:
+        log.info('action_choose timed out - random president chosen')
+        chosen_id = random.choice([i for i in range(1, len(btns)+1)])
+    chosen_uid = btns[chosen_id-1]['uid']
+    await choose_choose(bot, game, chosen_uid)
 
 async def choose_choose(bot, game, answer):
     log.info('choose_choose called')
