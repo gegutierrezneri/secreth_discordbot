@@ -241,7 +241,7 @@ async def command_startgame(bot, msg, args):
                 player_number = len(game.playerlist)
                 if player_number > 4:
                     # Tell people their roles and such
-                    await inform_players(bot, game, game.channel.id, player_number)
+                    await inform_players(bot, game, player_number)
                     await inform_fascists(bot, game, player_number)
                     game.board = Board(player_number, game)
                     game.shuffle_player_sequence()
@@ -358,15 +358,15 @@ async def choose_chancellor(bot, game):
         log.info('choose_chancellor timed out - random chancellor chosen')
         chan_num = random.choice([i for i, p in enumerate(btns)])
     await nominate_chosen_chancellor(bot,
-                                     game.channel.id,
+                                     game,
                                      btns[chan_num-1]['uid'] if chan_num else random.choice(list(game.playerlist.keys()))
     )
 
 
-async def nominate_chosen_chancellor(bot, cid, chosen_uid):
+async def nominate_chosen_chancellor(bot, game, chosen_uid):
     log.info('nominate_chosen_chancellor called')
     try:
-        game = games[cid]
+        #game = games[cid]
         game.board.state.nominated_chancellor = game.playerlist[chosen_uid]
         log.info("President %s (%d) nominated %s (%d)" % (
             game.board.state.nominated_president.name, game.board.state.nominated_president.user.id,
@@ -537,9 +537,7 @@ async def draw_policies(bot, game):
 
 async def choose_policy(bot, game, answer):
     log.info('choose_policy called')
-    cid = game.channel.id
     try:
-        game = games[cid]
         pres = game.board.state.president
         if len(game.board.state.drawn_policies) == 3:
             log.info("Player %s (%d) discarded %s" % (pres.name, pres.user.id, answer))
@@ -747,11 +745,9 @@ async def enact_policy(bot, game, policy, anarchy):
 
 async def choose_veto(bot, game, veto):
     log.info('choose_veto called')
-    cid = game.channel.id
     # remember, veto is True if policy is accepted
     answer = "yesveto" if veto else "noveto"
     try:
-        game = games[cid]
         uid = game.board.state.president.user.id
         if answer == "yesveto":
             log.info("Player %s (%d) accepted the veto" % (game.board.state.president.name, uid))
@@ -845,9 +841,7 @@ async def action_kill(bot, game):
 
 async def choose_kill(bot, game, answer):
     log.info('choose_kill called')
-    cid = game.channel.id
     try:
-        game = games[cid]
         chosen = game.playerlist[answer]
         chosen.is_dead = True
         if game.player_sequence.index(chosen) <= game.board.state.player_counter:
@@ -913,9 +907,7 @@ async def action_choose(bot, game):
 
 async def choose_choose(bot, game, answer):
     log.info('choose_choose called')
-    cid = game.channel.id
     try:
-        game = games[cid]
         chosen = game.playerlist[answer]
         game.board.state.chosen_president = chosen
         log.info(
@@ -971,9 +963,7 @@ async def action_inspect(bot, game):
 
 async def choose_inspect(bot, game, answer):
     log.info('choose_inspect called')
-    cid = game.channel.id
     try:
-        game = games[cid]
         chosen = game.playerlist[answer]
         log.info("Player %s (%d) inspects %s (%d)'s party membership: %s" % (
                 game.board.state.president.name, game.board.state.president.user.id, chosen.name, chosen.user.id,
@@ -1050,7 +1040,7 @@ async def end_game(bot, game, game_endcode):
     del games[game.channel.id]
 
 
-async def inform_players(bot, game, cid, player_number):
+async def inform_players(bot, game, player_number):
     log.info('inform_players called')
     await game.channel.send(
                      "Let's start the game with %d players!\n%s\nGo to your private chat and look at your secret role!" % (
