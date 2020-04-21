@@ -87,7 +87,7 @@ async def command_ping(bot, msg, args):
 
 async def command_invite(bot, msg, args):
     """Sends a link to add the bot to another server."""
-    em = discord.Embed(type="rich", title="Invite Secret Hitler Bot to a Server", description="https://discordapp.com/api/oauth2/authorize?client_id=690150888836300860&permissions=67632192&scope=bot", color=embed_color)
+    em = discord.Embed(type="rich", title="Invite Secret Hitler Bot to a Server", description="https://discordapp.com/api/oauth2/authorize?client_id=702048291780558870&permissions=67631168&scope=bot", color=embed_color)
     await msg.channel.send(embed=em)
 
 
@@ -128,7 +128,7 @@ async def command_help(bot, msg, args):
 
 async def command_about(bot, msg, args):
     """Information about the bot's authors and licensing."""
-    await msg.channel.send(embed=generate_embed("This bot was originally developed for the chat client Telegram by Julian Schrittwieser.\n\nThis version has been adapted to Discord by James Shiffer, and uses the library discord.py.\nView the source code here: https://github.com/scoliono/secreth_telegrambot/tree/discord\n\nCopyright and license Secret Hitler (© 2016 GOAT, WOLF, & CABBAGE) is designed by Max Temkin (Cards Against Humanity, Humans vs. Zombies) Mike Boxleiter (Solipskier, TouchTone), Tommy Maranges (Philosophy Bro) and illustrated by Mackenzie Schubert (Letter Tycoon, Penny Press). Secret Hitler is licensed under Creative Commons BY-NC-SA 4.0 and so is this bot.", "About Secret Hitler Bot"))
+    await msg.channel.send(embed=generate_embed("This bot was originally developed for the chat client Telegram by Julian Schrittwieser.\n\nThis version has been adapted to Discord by James Shiffer, and uses the library discord.py. dszryan and Ng Oon-Ee updated it to discord.py 1.3.2.\nView the source code here: https://github.com/ngoonee/secreth_telegrambot/tree/discord\n\nCopyright and license Secret Hitler (© 2016 GOAT, WOLF, & CABBAGE) is designed by Max Temkin (Cards Against Humanity, Humans vs. Zombies) Mike Boxleiter (Solipskier, TouchTone), Tommy Maranges (Philosophy Bro) and illustrated by Mackenzie Schubert (Letter Tycoon, Penny Press). Secret Hitler is licensed under Creative Commons BY-NC-SA 4.0 and so is this bot.", "About Secret Hitler Bot"))
 
 
 # shutdown, only ADMIN
