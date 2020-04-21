@@ -1159,7 +1159,7 @@ def validate_message(msg):
     Returns False if not a valid command. Otherwise return the command and the first argument.
     """
     msg_content = msg.content.strip()
-    if not msg_content.startswith(PREFIX):
+    if not msg_content.lower().startswith(PREFIX):
         return False
     cmd, *args = msg_content.split()
     cmd = cmd[len(PREFIX):].lower().strip()

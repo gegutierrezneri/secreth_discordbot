@@ -47,7 +47,7 @@ async def on_message(msg):
     msg_content = msg.content.strip()
 
     # Only care about messages that start with prefix
-    if not msg_content.startswith(PREFIX):
+    if not msg_content.lower().startswith(PREFIX):
         return
 
     # Bot won't take commands from itself
