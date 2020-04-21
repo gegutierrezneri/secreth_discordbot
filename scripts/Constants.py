@@ -9,8 +9,8 @@ players = {
             "Hitler"
         ],
         "track": [
-            None,
-            None,
+            "inspect",
+            "choose",
             "policy",
             "kill",
             "kill",

@@ -1,3 +1,5 @@
+import time
+
 class Player(object):
     """Represents a player in a game of Secret Hitler."""
     def __init__(self, name, user):

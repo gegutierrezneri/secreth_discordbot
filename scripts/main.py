@@ -12,14 +12,14 @@ import Commands
 
 # Enable logging
 log.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                level=log.DEBUG,
+                level=log.INFO,
                 filename='../logs/logging.log')
 
 logger = log.getLogger(__name__)
 
 ch = log.StreamHandler(sys.stdout)
 ch.setFormatter(log.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-ch.setLevel(log.DEBUG)
+ch.setLevel(log.INFO)
 logger.addHandler(ch)
 
 games = {}
@@ -47,7 +47,7 @@ async def on_message(msg):
     msg_content = msg.content.strip()
 
     # Only care about messages that start with prefix
-    if not msg_content.startswith(PREFIX):
+    if not msg_content.lower().startswith(PREFIX):
         return
 
     # Bot won't take commands from itself
@@ -64,7 +64,6 @@ async def on_message(msg):
         log.debug('Invalid command "sh?' + cmd + '"')
         return
 
-    await bot.send_typing(msg.channel)
     log.debug('"command_' + cmd + '" called')
     await cmd_func(bot, msg, args)
 
@@ -72,9 +71,8 @@ async def on_message(msg):
 async def update_status():
     while True:
         await bot.change_presence(
-            game=discord.Game(
-                name="{}help | {} servers".format(PREFIX, len(bot.servers))
-            )
+            status=discord.Status.online,
+            activity=discord.Game("{}help | {} servers".format(PREFIX, len(bot.guilds)))
         )
         await asyncio.sleep(5)
 
